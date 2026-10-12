@@ -1,0 +1,8 @@
+**
+!Dockerfile
+!requirements.txt
+!convert.py
+!relief.py
+!cli.py
+!tests/
+!tests/*.py
