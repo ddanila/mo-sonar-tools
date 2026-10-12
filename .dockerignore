@@ -6,3 +6,4 @@
 !cli.py
 !tests/
 !tests/*.py
+!metadata.py

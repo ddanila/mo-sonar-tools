@@ -1,11 +1,12 @@
 # MO Sonar Tools
 
-Two local tools for a reverse-engineered side-scan sonar disk format:
+Three local tools for a reverse-engineered side-scan sonar disk format:
 
 - **`convert.py`** inspects disk catalogues and extracts lossless scan images and metadata.
+- **`metadata.py`** extracts raw trailers and provisional navigation fields, retaining uncertainty and repeated-payload provenance.
 - **`relief.py`** turns a selected grayscale scan region into an adjustable OpenSCAD intensity relief, optionally exporting STL and a rendered preview.
 
-Runs with Python on Windows, macOS and Linux, or in Docker with Python, Pillow and OpenSCAD included. Neither tool uploads input or output data. This repository contains only code, documentation and tests that generate synthetic fixtures in temporary directories.
+Runs with Python on Windows, macOS and Linux, or in Docker with Python, Pillow and OpenSCAD included. None of the tools upload input or output data. This repository contains only code, documentation and tests that generate synthetic fixtures in temporary directories.
 
 ## Supported format
 
@@ -88,6 +89,24 @@ Every extracted record is re-read from the PNG and trailer and compared byte-for
 To reconstruct a record, concatenate its 3,840 **decoded PNG pixel bytes** with the corresponding 256 bytes from its trailer file. Use the manifest's record index to place it at `16384 + index * 4096`. The header and unclaimed ranges account for the rest of the image. Do not concatenate compressed PNG file bytes directly.
 
 The converter reads regular image files, not `/dev` devices. It does not acquire physical disks, repair broken catalogues or certify the quality of an original disk acquisition. Retain the source image and acquisition logs.
+
+## Extract candidate navigation metadata
+
+```sh
+python metadata.py /path/to/disk.bin --output metadata-output
+```
+
+Or use the same read-only input and output mounts as above:
+
+```sh
+docker run --rm --network none --mount "type=bind,source=${PWD}/input,target=/input,readonly" --mount "type=bind,source=${PWD}/output,target=/output" mo-sonar-tools metadata /input/disk.bin --output /output
+```
+
+This standard-library-only extractor writes `metadata.csv` and `manifest.json` in a new `<filename>_<hash-prefix>_metadata` directory. It validates the supported catalogue, reads only catalogued records, refuses overwrite and checks the source hash before marking completion. Memory use grows with the number of distinct serial payloads. Use `convert extract` for complete disk preservation.
+
+The CSV retains every trailer byte, candidate GGA/GLL/RMC numeric fields, unsigned coordinate magnitudes, raw hemisphere/status tokens, candidate direction/speed and repeated-payload provenance. Empty cells mean unavailable or unparsed, not zero. Final unterminated numeric fields are deliberately left undecoded. Clock differences are same-day arithmetic, with no midnight correction or synchronization assumption. Repeated navigation can be stale; no automatic track or georeferencing is produced.
+
+See [format findings and the CSV column reference](METADATA.md) for offsets, confidence, limitations and documentation references. These fields do not provide measured seabed geometry for the relief generator.
 
 ## Generate an OpenSCAD relief
 
